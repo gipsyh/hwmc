@@ -4,8 +4,12 @@ pub mod simplify;
 pub mod simulate;
 pub mod unroll;
 
-use aig::Aig;
+use aig::{
+    cnf::{AigCnfContext, NodeCnfContext},
+    Aig,
+};
 use logic_form::{Clause, Cube, Lit, LitMap, Var, VarMap};
+use rand::{seq::SliceRandom, thread_rng};
 use satif::Satif;
 use std::collections::{HashMap, HashSet};
 
@@ -85,7 +89,10 @@ impl Transys {
             prev_map[*p] = l;
             prev_map[!*p] = !l;
         }
-        let test = aig.get_simplified_cnf();
+        let mut aig_cnf_ctx = aig.get_simplified_cnf_context();
+        let test = aig_cnf_ctx.cnf();
+        ctx_test(&mut aig_cnf_ctx);
+        let test = aig_cnf_ctx.cnf();
         dbg!(test.len());
         let mut trans = aig.get_cnf();
         dbg!(trans.len());
@@ -280,4 +287,81 @@ impl Transys {
     //     }
     //     self.simplify(&[], keep_dep, true)
     // }
+}
+
+fn lift_minimal_model(lift: &mut cadical::Solver, mut model: Cube, target: Lit) -> Cube {
+    let mut rng = thread_rng();
+    loop {
+        model.shuffle(&mut rng);
+        assert!(!lift.solve_with_constrain(&model, &[!target]));
+        let o = model.len();
+        model.retain(|l| lift.unsat_has(*l));
+        if model.len() == o {
+            return model;
+        }
+    }
+}
+
+fn cn_test(n: usize, cn: &mut NodeCnfContext) {
+    if cn.cnf.len() == 0 {
+        assert!(cn.deps.is_empty());
+        return;
+    }
+    // dbg!(cn.cnf.len());
+    // let sum: usize = cn.cnf.iter().map(|cls| cls.len()).sum();
+    // dbg!(sum);
+    let mut deps = HashSet::new();
+    let n = Var::new(n).lit();
+    let mut solver = cadical::Solver::new();
+    let mut lift = cadical::Solver::new();
+    for cls in cn.cnf.iter() {
+        for l in cls.iter() {
+            deps.insert(l.var());
+        }
+        solver.add_clause(&cls);
+        lift.add_clause(&cls);
+    }
+    assert!(deps.len() == cn.deps.len() + 1);
+    let mut deps = Vec::from_iter(deps.into_iter());
+    deps.sort();
+
+    let mut new_cnf = Vec::new();
+    while solver.solve(&[n]) {
+        let mut model = Cube::new();
+        for l in deps.iter() {
+            let l = l.lit();
+            let v = solver.sat_value(l).unwrap();
+            model.push(l.not_if(!v));
+        }
+        model = lift_minimal_model(&mut lift, model, n);
+        let mut bc = !model;
+        solver.add_clause(&bc);
+        bc.push(n);
+        new_cnf.push(bc);
+    }
+    while solver.solve(&[!n]) {
+        let mut model = Cube::new();
+        for l in deps.iter() {
+            let l = l.lit();
+            let v = solver.sat_value(l).unwrap();
+            model.push(l.not_if(!v));
+        }
+        model = lift_minimal_model(&mut lift, model, !n);
+        let mut bc = !model;
+        solver.add_clause(&bc);
+        bc.push(!n);
+        new_cnf.push(bc);
+    }
+    if new_cnf.len() < cn.cnf.len() {
+        dbg!(new_cnf.len());
+        dbg!(cn.cnf.len());
+        cn.cnf = new_cnf;
+    }
+}
+
+fn ctx_test(ctx: &mut AigCnfContext) {
+    for cn in 0..ctx.len() {
+        cn_test(cn, &mut ctx[cn]);
+    }
+    dbg!(ctx.cnf().len());
 }
