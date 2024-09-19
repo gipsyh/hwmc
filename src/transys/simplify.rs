@@ -84,6 +84,8 @@ impl Transys {
             println!("warning: model trans simplified with unsat");
         }
         let mut trans = simp_solver.clauses();
+        dbg!(trans.len());
+        todo!();
         trans.push(Clause::from([!false_lit]));
         let mut max_var = false_lit.var();
         let mut domain = HashSet::from_iter(frozens);

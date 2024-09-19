@@ -85,7 +85,11 @@ impl Transys {
             prev_map[*p] = l;
             prev_map[!*p] = !l;
         }
+        let test = aig.get_simplified_cnf();
+        dbg!(test.len());
         let mut trans = aig.get_cnf();
+        dbg!(trans.len());
+        trans = test;
         for i in 0..aig.latchs.len() {
             trans.push(Clause::from([!primes[i], aig.latchs[i].next.to_lit()]));
             trans.push(Clause::from([primes[i], !aig.latchs[i].next.to_lit()]));
