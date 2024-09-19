@@ -85,7 +85,8 @@ impl Transys {
             prev_map[*p] = l;
             prev_map[!*p] = !l;
         }
-        let test = aig.get_simplified_cnf();
+        let aig_cnf_ctx = aig.get_simplified_cnf_context();
+        let test = aig_cnf_ctx.cnf();
         dbg!(test.len());
         let mut trans = aig.get_cnf();
         dbg!(trans.len());
