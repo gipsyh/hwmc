@@ -8,6 +8,7 @@ edition = "2021"
 aig = "=0.2.6"
 satif = "=0.1.3"
 satif-minisat = "=0.2.4"
+satif-cadical = "=0.1.4"
 logic-form = "=0.2.9"
 clap = { version = "4.3.0", features = ["derive"] }
 rand = "0.8.5"
