@@ -7,6 +7,7 @@ edition = "2021"
 [dependencies]
 aig = { path = "../aig-rs" }
 satif-minisat = { path = "../minisat-rs" }
+satif-cadical = { path = "../cadical-rs" }
 logic-form = { path = "../logic-form" }
 clap = { version = "4.3.0", features = ["derive"] }
 rand = "0.8.5"
