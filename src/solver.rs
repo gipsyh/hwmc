@@ -5,7 +5,7 @@ use satif::Satif;
 use std::ops::Deref;
 use transys::Transys;
 
-pub type SatSolver = satif_cadical::Solver;
+pub type SatSolver = cryptominisat::Solver;
 
 pub struct Ic3Solver {
     solver: Box<SatSolver>,
