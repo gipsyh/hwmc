@@ -1,6 +1,6 @@
 use super::{Frames, IC3};
 use crate::statistic::Statistic;
-use giputils::grc::Grc;
+use giputils::{grc::Grc, statistic::Average};
 use logic_form::{Clause, Cube, Lit};
 use satif::Satif;
 use std::ops::Deref;
@@ -16,6 +16,7 @@ pub struct Ic3Solver {
     cube: Cube,
     assumption: Cube,
     act: Option<Lit>,
+    pub coi: Average,
 }
 
 impl Ic3Solver {
@@ -31,6 +32,7 @@ impl Ic3Solver {
             cube: Default::default(),
             assumption: Default::default(),
             act: None,
+            coi: Default::default(),
         }
     }
 
@@ -72,6 +74,18 @@ impl Ic3Solver {
     fn inductive(&mut self, cube: &Cube, strengthen: bool) -> bool {
         self.finish_last();
         let mut assumption = self.ts.cube_next(cube);
+        let coi = self
+            .ts
+            .get_coi(
+                assumption
+                    .iter()
+                    .chain(self.ts.constraints.iter())
+                    .into_iter()
+                    .map(|l| l.var()),
+            )
+            .len();
+        let coi = coi as f64 / self.ts.dlen as f64;
+        self.coi += coi;
         if strengthen {
             let act = self.solver.new_var().into();
             assumption.push(act);

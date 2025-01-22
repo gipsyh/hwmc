@@ -33,6 +33,7 @@ pub struct Statistic {
 
     pub bucket_sum: f64,
     pub bucket_num: usize,
+    pub coi: Average,
 }
 
 impl Statistic {
@@ -57,6 +58,7 @@ impl IC3 {
         for solver in self.solvers.iter() {
             self.statistic.bucket_num += solver.solver.get_bucket_num();
             self.statistic.bucket_sum += solver.solver.get_bucket_sum();
+            self.statistic.coi += solver.coi;
         }
         println!("{:#?}", self.statistic);
     }
