@@ -10,7 +10,6 @@ pub type SatSolver = satif_cadical::Solver;
 pub struct Ic3Solver {
     solver: Box<SatSolver>,
     ts: Grc<Transys>,
-    num_act: usize,
     frame: usize,
     cube: Cube,
     assumption: Cube,
@@ -26,7 +25,6 @@ impl Ic3Solver {
             solver,
             ts,
             frame,
-            num_act: 0,
             cube: Default::default(),
             assumption: Default::default(),
             act: None,
@@ -68,16 +66,10 @@ impl Ic3Solver {
 
     fn inductive(&mut self, cube: &Cube, strengthen: bool) -> bool {
         self.finish_last();
-        let mut assumption = self.ts.cube_next(cube);
+        let assumption = self.ts.cube_next(cube);
         if strengthen {
-            let act = self.solver.new_var().into();
-            assumption.push(act);
-            let mut tmp_cls = !cube;
-            tmp_cls.push(!act);
-            self.solver.add_clause(&tmp_cls);
-            let res = self.solver.solve(&assumption);
-            let act = !assumption.pop().unwrap();
-            self.act = Some(act);
+            let tmp_cls = !cube;
+            let res = self.solver.solve_with_constrain(&assumption, &tmp_cls);
             self.assumption = assumption;
             self.cube = cube.clone();
             !res
@@ -121,11 +113,6 @@ impl Ic3Solver {
 impl IC3 {
     pub fn blocked(&mut self, frame: usize, cube: &Cube, strengthen: bool) -> bool {
         assert!(!self.ts.cube_subsume_init(cube));
-        let solver = &mut self.solvers[frame - 1];
-        solver.num_act += 1;
-        if solver.num_act > 1000 {
-            solver.reset(&self.frame);
-        }
         self.solvers[frame - 1].inductive(cube, strengthen)
     }
 
@@ -168,16 +155,10 @@ impl Lift {
 
 impl IC3 {
     pub fn get_pred(&mut self, frame: usize) -> (Cube, Cube) {
-        self.lift.num_act += 1;
-        if self.lift.num_act > 1000 {
-            self.lift = Lift::new(&self.ts)
-        }
         let solver = &mut self.solvers[frame - 1];
-        let act: Lit = self.lift.solver.new_var().into();
-        let mut assumption = Cube::from([act]);
+        let mut assumption = Cube::new();
         let mut cls = solver.assumption.clone();
         cls.extend_from_slice(&self.ts.constraints);
-        cls.push(act);
         let cls = !cls;
         let mut inputs = Cube::new();
         self.lift.solver.add_clause(&cls);
@@ -199,7 +180,7 @@ impl IC3 {
         }
         self.activity.sort_by_activity(&mut latchs, false);
         assumption.extend_from_slice(&latchs);
-        let res: Cube = if self.lift.solver.solve(&assumption) {
+        let res: Cube = if self.lift.solver.solve_with_constrain(&assumption, &cls) {
             panic!()
         } else {
             latchs
@@ -207,7 +188,6 @@ impl IC3 {
                 .filter(|l| self.lift.solver.unsat_has(*l))
                 .collect()
         };
-        self.lift.solver.add_clause(&[!act]);
         (res, inputs)
     }
 }
