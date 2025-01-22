@@ -1,4 +1,5 @@
 use super::{Frames, IC3};
+use crate::statistic::Statistic;
 use giputils::grc::Grc;
 use logic_form::{Clause, Cube, Lit};
 use satif::Satif;
@@ -8,7 +9,7 @@ use transys::Transys;
 pub type SatSolver = satif_minisat::Solver;
 
 pub struct Ic3Solver {
-    solver: Box<SatSolver>,
+    pub solver: Box<SatSolver>,
     ts: Grc<Transys>,
     num_act: usize,
     frame: usize,
@@ -33,7 +34,9 @@ impl Ic3Solver {
         }
     }
 
-    pub fn reset(&mut self, frames: &Frames) {
+    pub fn reset(&mut self, frames: &Frames, statistic: &mut Statistic) {
+        statistic.bucket_num += self.solver.get_bucket_num();
+        statistic.bucket_sum += self.solver.get_bucket_sum();
         *self = Self::new(&self.ts, self.frame);
         let frames_slice = if self.frame == 0 {
             &frames[0..1]
@@ -124,7 +127,7 @@ impl IC3 {
         let solver = &mut self.solvers[frame - 1];
         solver.num_act += 1;
         if solver.num_act > 1000 {
-            solver.reset(&self.frame);
+            solver.reset(&self.frame, &mut self.statistic);
         }
         self.solvers[frame - 1].inductive(cube, strengthen)
     }
