@@ -76,6 +76,15 @@ impl IC3 {
     }
 
     pub fn mic(&mut self, frame: usize, mut cube: Cube, level: usize) -> Cube {
+        if level == 0 {
+            self.solvers[frame - 1].set_domain(
+                self.ts
+                    .cube_next(&cube)
+                    .iter()
+                    .copied()
+                    .chain(cube.iter().copied()),
+            );
+        }
         self.activity.sort_by_activity(&mut cube, true);
         let mut keep = HashSet::new();
         let mut i = 0;
@@ -88,10 +97,23 @@ impl IC3 {
             removed_cube.remove(i);
             if let Some(new_cube) = self.ctg_down(frame, &removed_cube, &keep, level) {
                 (cube, i) = self.handle_down_success(frame, cube, i, new_cube);
+                if level == 0 {
+                    self.solvers[frame - 1].unset_domain();
+                    self.solvers[frame - 1].set_domain(
+                        self.ts
+                            .cube_next(&cube)
+                            .iter()
+                            .copied()
+                            .chain(cube.iter().copied()),
+                    );
+                }
             } else {
                 keep.insert(cube[i]);
                 i += 1;
             }
+        }
+        if level == 0 {
+            self.solvers[frame - 1].unset_domain();
         }
         self.activity.bump_cube_activity(&cube);
         cube
